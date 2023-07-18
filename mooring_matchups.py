@@ -17,7 +17,7 @@ matchup_info = pd.read_csv('matchup_info.csv')
 # Must be formated to have LATITUDE, LONGITUDE, START_DATE, END_DATE, OUT_FNAME
 # Must have DEPTH or PRES...you specify
 
-use_local_dac = False
+#use_local_dac = False
 
 dist_thresh = 25 # km...how far away from each lat-lon spot to look
 
@@ -29,4 +29,4 @@ params =['DOXY'] # look at floats with the following parameters
 over_write = False # over_write pre-processed data
 
 
-do_matchups(matchup_info, params, dist_thresh, d_type, d_thresh, over_write,use_local_dac)
+do_matchups(matchup_info, params, dist_thresh, d_type, d_thresh, over_write)
