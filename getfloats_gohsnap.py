@@ -225,6 +225,8 @@ def getfloat_values_atdepth(good_index, params,d_bin, use_local_dac=False, over_
                 
                 all_float_p =  np.array(''.join([x.decode('utf-8') for x in list(data.PARAMETER.values[0][0])]).split(' '))
                 all_float_p = all_float_p[all_float_p!='']
+                
+                all_param_comments = [[]]*(len(all_parameters)+2)
                 for j in np.arange(len(all_parameters)):
                     
                     param = all_parameters[j]
@@ -237,6 +239,14 @@ def getfloat_values_atdepth(good_index, params,d_bin, use_local_dac=False, over_
             
                     all_values[:,j] = qc_data
                     
+                    # Get calibration information
+                    cal_info = ''
+                    for jj in np.arange(data.SCIENTIFIC_CALIB_COMMENT.values.shape[1]):
+                        cc = [x.decode('utf-8') for x in list(data.SCIENTIFIC_CALIB_COMMENT.values[0,jj,:])]
+                        cal_info = cal_info + cc[p_ind[0]].split('  ')[0]
+                    
+                    all_param_comments[j]=cal_info
+                    
                 df=pd.DataFrame(all_values, columns = all_parameters)
                 z = gsw.z_from_p(df.loc[:,'PRES'].values, np.ones(df.shape[0])*data.LATITUDE.values[0])*-1
                 df = df.assign(DEPTH = z)
@@ -247,6 +257,9 @@ def getfloat_values_atdepth(good_index, params,d_bin, use_local_dac=False, over_
                 CT = gsw.CT_from_t(SA, df.loc[:,'TEMP'].values, df.loc[:,'PRES'].values)
                 sigma0  = gsw.sigma0(SA, CT)+1000
                 df = df.assign(SIGMA0 = sigma0)
+                
+                dft=pd.DataFrame(np.array(all_param_comments,dtype='object').reshape(1,-1), columns = all_parameters+['DEPTH','SIGMA0'])
+                df = pd.concat((dft,df), ignore_index=True)
                 
                 # Save as pickle
                 print('Saving processed data to pickle...')
@@ -263,7 +276,10 @@ def getfloat_values_atdepth(good_index, params,d_bin, use_local_dac=False, over_
                 d_var = 'PRES'
             elif 'SIGMA0' in d_type:
                 d_var = 'SIGMA0'
-                
+            
+            comments = df.iloc[0,:]
+            df = df.iloc[1:,:]
+            
             subset = df.loc[(df.loc[:,d_var]>=d_bin[d_type][1]) & (df.loc[:,d_var]<=d_bin[d_type][2]),:]
             
             s_mean = subset.mean()
@@ -272,19 +288,23 @@ def getfloat_values_atdepth(good_index, params,d_bin, use_local_dac=False, over_
             # Save data
             core_df = pd.Series({'PRES': s_mean.loc['PRES'],
                                  'PRES_STD': s_std.loc['PRES'],
+                                 'PRES_COMMENT': comments.loc['PRES'],
                                  'DEPTH': s_mean.loc['DEPTH'],
                                  'DEPTH_STD': s_std.loc['DEPTH'],
                                  'SIGMA0': s_mean.loc['SIGMA0'],
                                  'SIGMA0_STD': s_std.loc['SIGMA0'],
                                  'TEMP': s_mean.loc['TEMP'],
                                  'TEMP_STD': s_std.loc['TEMP'],
+                                 'TEMP_COMMENT': comments.loc['TEMP'],
                                  'PSAL': s_mean.loc['PSAL'],
                                  'PSAL_STD': s_std.loc['PSAL'],
+                                 'PSAL_COMMENT': comments.loc['PSAL'],
                                  })
             
             for p in params:
                 p_df = pd.Series({p: s_mean.loc[p],
-                                  p+'_STD': s_std.loc[p]})
+                                  p+'_STD': s_std.loc[p],
+                                  p+'_COMMENT': comments.loc[p]})
                 
                 core_df = pd.concat((core_df, p_df))
                 
@@ -376,7 +396,7 @@ def do_matchups(matchup_info, params, dist_thresh, d_type, d_thresh, over_write 
             d_summary= d_summary.assign(date_format = pd_dates)
             
             # Drop rows if there is no good argo data
-            check_names = d_summary.columns.to_list()[10:-1]
+            check_names = d_summary.columns.to_list()[10:(20+2*len(params))]
             d_summary = d_summary.drop(d_summary.index.values[np.where(d_summary.loc[:,check_names].sum(axis=1)==0)])
             
             ############################################

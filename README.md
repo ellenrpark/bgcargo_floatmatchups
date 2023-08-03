@@ -11,3 +11,7 @@ By default, the program will download the synthetic index file and profiles from
 Run mooring_matchups.py to get match-ups for the GOHSNAP mooring.
 - Locations, dates, etc. are taken from match_up.csv, which is a reformatted version of the deployment table.
 - getfloats_gohsnap.py contains all the main functions
+
+Note:
+- updated to include scientific calibration comments for each parameter
+- first line of pickle contains SCIENTIFIC_CALIB_COMMENT
