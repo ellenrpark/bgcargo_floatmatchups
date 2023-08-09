@@ -125,8 +125,8 @@ def QCDataByParameter(floatdata, param, datamode):
     # data: (N_PROF, N_LEVELS)
     # datamode: (N_PROF, N_PARAM)
 
-    AllQCLevels=[b'1',b'2',b'3',b'4',b'5',b'6',b'7',b'8',b'9']
-    AllQCLevels_i=[1,2,3,4,5,6,7,8,9]
+    AllQCLevels=[b'0',b'1',b'2',b'3',b'4',b'5',b'6',b'7',b'8',b'9']
+    AllQCLevels_i=[0,1,2,3,4,5,6,7,8,9]
     goodQC_flags = [1,2]
     for i in goodQC_flags:
         AllQCLevels_i.remove(i)
@@ -136,12 +136,14 @@ def QCDataByParameter(floatdata, param, datamode):
 
     adj = floatdata[param+'_ADJUSTED'].values
     adj_qc = floatdata[param+'_ADJUSTED_QC'].values
-
+    adj_error = floatdata[param+'_ADJUSTED_ERROR'].values
+    
     # QC by each profile
     # if R: use PARAM, PARAM_QC
     # elif D/A: use PARAM_ADJUSTED, PARAM_ADJUSTED_QC
     all_data = np.zeros(raw.shape)*np.NaN
     all_data_qc = np.zeros(raw.shape)*np.NaN
+    all_data_error = np.zeros(raw.shape)*np.NaN
     
     for k in np.arange(raw.shape[0]):
         if datamode == 'R':
@@ -150,14 +152,17 @@ def QCDataByParameter(floatdata, param, datamode):
         else:
             all_data[k,:] = adj[k,:]
             all_data_qc[k,:]  = adj_qc[k,:]
+            all_data_error[k,:]  = adj_error[k,:]
 
     # QC the data
     all_data = pd.DataFrame(all_data)
     all_data_qc = pd.DataFrame(all_data_qc)
+    all_data_error = pd.DataFrame(all_data_error)
 
     for badqc in AllQCLevels_i:
         #all_data.iloc[all_data_qc.iloc[:,:]==badqc,all_data_qc.iloc[:,:]==badqc]=np.NaN
         all_data=np.where(all_data_qc == badqc, np.NaN, all_data)
+        all_data_error=np.where(all_data_qc == badqc, np.NaN, all_data_error)
         #all_data.replace(all_data_qc.iloc[:,:]==badqc, np.NaN)
         
     for i in np.arange(all_data.shape[0]):
@@ -165,11 +170,13 @@ def QCDataByParameter(floatdata, param, datamode):
             
             if math.isnan(all_data_qc.iloc[i,j]) == True and np.isnan(all_data[i,j]) == False:
                 all_data[i,j]= np.NaN
+                all_data_error[i,j]= np.NaN
 
     qc_data = all_data
     qc_flags = np.array(all_data_qc)
-
-    return qc_data, qc_flags
+    qc_error = all_data_error
+    
+    return qc_data, qc_flags, qc_error
 
 def getfloat_values_atdepth(good_index, params,d_bin, use_local_dac=False, over_write=True, *local_dac_dir):
     
@@ -222,10 +229,12 @@ def getfloat_values_atdepth(good_index, params,d_bin, use_local_dac=False, over_
                 # Quality control P, T, S and target parameters
                 all_parameters = ['PRES','TEMP','PSAL']+params
                 all_values = np.zeros((data.PRES.values.shape[1],len(all_parameters)))*np.NaN
+                all_values_error = np.zeros((data.PRES.values.shape[1],len(all_parameters)))*np.NaN
                 
                 all_float_p =  np.array(''.join([x.decode('utf-8') for x in list(data.PARAMETER.values[0][0])]).split(' '))
                 all_float_p = all_float_p[all_float_p!='']
                 
+                all_param_mode = [[]]*(len(all_parameters)+2)
                 all_param_comments = [[]]*(len(all_parameters)+2)
                 for j in np.arange(len(all_parameters)):
                     
@@ -234,11 +243,12 @@ def getfloat_values_atdepth(good_index, params,d_bin, use_local_dac=False, over_
                     p_ind = np.where(all_float_p==param)[0]
                     
                     datamode = data.PARAMETER_DATA_MODE.values[0,p_ind][0].decode('utf-8')
+                    all_param_mode[j]=datamode
                     
-                    qc_data, qc_flags = QCDataByParameter(data, param, datamode)
+                    qc_data, qc_flags, qc_error = QCDataByParameter(data, param, datamode)
             
                     all_values[:,j] = qc_data
-                    
+                    all_values_error[:,j]=qc_error
                     # Get calibration information
                     cal_info = ''
                     for jj in np.arange(data.SCIENTIFIC_CALIB_COMMENT.values.shape[1]):
@@ -248,6 +258,11 @@ def getfloat_values_atdepth(good_index, params,d_bin, use_local_dac=False, over_
                     all_param_comments[j]=cal_info
                     
                 df=pd.DataFrame(all_values, columns = all_parameters)
+                
+                # Add errors
+                dft=pd.DataFrame(all_values_error, columns = [x+'_ERROR' for x in all_parameters])
+                df = pd.concat((df,dft),axis=1)
+                
                 z = gsw.z_from_p(df.loc[:,'PRES'].values, np.ones(df.shape[0])*data.LATITUDE.values[0])*-1
                 df = df.assign(DEPTH = z)
                 
@@ -258,8 +273,13 @@ def getfloat_values_atdepth(good_index, params,d_bin, use_local_dac=False, over_
                 sigma0  = gsw.sigma0(SA, CT)+1000
                 df = df.assign(SIGMA0 = sigma0)
                 
+                dft=pd.DataFrame(np.array(all_param_mode,dtype='object').reshape(1,-1), columns = all_parameters+['DEPTH','SIGMA0'])
+                df = pd.concat((dft,df), ignore_index=True)
+                
                 dft=pd.DataFrame(np.array(all_param_comments,dtype='object').reshape(1,-1), columns = all_parameters+['DEPTH','SIGMA0'])
                 df = pd.concat((dft,df), ignore_index=True)
+                
+                
                 
                 # Save as pickle
                 print('Saving processed data to pickle...')
@@ -278,7 +298,8 @@ def getfloat_values_atdepth(good_index, params,d_bin, use_local_dac=False, over_
                 d_var = 'SIGMA0'
             
             comments = df.iloc[0,:]
-            df = df.iloc[1:,:]
+            data_mode = df.iloc[1,:]
+            df = df.iloc[2:,:]
             
             subset = df.loc[(df.loc[:,d_var]>=d_bin[d_type][1]) & (df.loc[:,d_var]<=d_bin[d_type][2]),:]
             
@@ -288,23 +309,36 @@ def getfloat_values_atdepth(good_index, params,d_bin, use_local_dac=False, over_
             # Save data
             core_df = pd.Series({'PRES': s_mean.loc['PRES'],
                                  'PRES_STD': s_std.loc['PRES'],
+                                 'PRES_ERROR': s_mean.loc['PRES_ERROR'],
+                                 'PRES_ERROR_STD': s_std.loc['PRES_ERROR'],
                                  'PRES_COMMENT': comments.loc['PRES'],
+                                 'PRES_MODE': data_mode.loc['PRES'],
                                  'DEPTH': s_mean.loc['DEPTH'],
                                  'DEPTH_STD': s_std.loc['DEPTH'],
                                  'SIGMA0': s_mean.loc['SIGMA0'],
                                  'SIGMA0_STD': s_std.loc['SIGMA0'],
                                  'TEMP': s_mean.loc['TEMP'],
                                  'TEMP_STD': s_std.loc['TEMP'],
+                                 'TEMP_ERROR': s_mean.loc['TEMP_ERROR'],
+                                 'TEMP_ERROR_STD': s_std.loc['TEMP_ERROR'],
                                  'TEMP_COMMENT': comments.loc['TEMP'],
+                                 'TEMP_MODE': data_mode.loc['TEMP'],
                                  'PSAL': s_mean.loc['PSAL'],
                                  'PSAL_STD': s_std.loc['PSAL'],
+                                 'PSAL_ERROR': s_mean.loc['PSAL_ERROR'],
+                                 'PSAL_ERROR_STD': s_std.loc['PSAL_ERROR'],
                                  'PSAL_COMMENT': comments.loc['PSAL'],
+                                 'PSAL_MODE': data_mode.loc['PSAL']
                                  })
             
             for p in params:
                 p_df = pd.Series({p: s_mean.loc[p],
                                   p+'_STD': s_std.loc[p],
-                                  p+'_COMMENT': comments.loc[p]})
+                                  p+'_ERROR':s_mean.loc[p+'_ERROR'],
+                                  p+'_ERROR_STD':s_std.loc[p+'_ERROR'],
+                                  p+'_COMMENT': comments.loc[p],
+                                  p+'_MODE': data_mode.loc[p]
+                                  })
                 
                 core_df = pd.concat((core_df, p_df))
                 

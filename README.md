@@ -13,5 +13,6 @@ Run mooring_matchups.py to get match-ups for the GOHSNAP mooring.
 - getfloats_gohsnap.py contains all the main functions
 
 Note:
-- updated to include scientific calibration comments for each parameter
+- updated to include scientific calibration comments for each parameter, data mode, and adjustment errors
 - first line of pickle contains SCIENTIFIC_CALIB_COMMENT
+- second line of pickle contains PARAMETER_DATA_MODE
