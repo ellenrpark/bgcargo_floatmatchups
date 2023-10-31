@@ -16,3 +16,4 @@ Note:
 - updated to include scientific calibration comments for each parameter, data mode, and adjustment errors
 - first line of pickle contains SCIENTIFIC_CALIB_COMMENT
 - second line of pickle contains PARAMETER_DATA_MODE
+- added post processing to allow matchup based on bgc thresholds
