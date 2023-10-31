@@ -130,5 +130,6 @@ dmypy.json
 
 # Folders
 /matchup_output/
+/processed_output/
 # Others
 
