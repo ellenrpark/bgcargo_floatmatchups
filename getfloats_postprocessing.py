@@ -11,6 +11,7 @@ import numpy as np
 import gsw
 import glob
 import os
+import matplotlib.pyplot as plt
 
 def GetThreshInds(float_data, sensor_mean, param_thresh):
     
@@ -34,7 +35,7 @@ def GetThreshInds(float_data, sensor_mean, param_thresh):
         
     return inds
 
-def do_matchups_with_thresholds(mooring_flist, param_thresh, time_thresh):
+def do_matchups_with_thresholds(mooring_flist, param_thresh, time_thresh, doxy_type):
     # Load mooring info table to get mooring lat-lon positions
     mooring_info = pd.read_csv('matchup_info.csv')
     
@@ -69,6 +70,9 @@ def do_matchups_with_thresholds(mooring_flist, param_thresh, time_thresh):
         # load matchup file
         matchup_fname = glob.glob('matchup_output/'+sensor+'*.csv')
         
+        plt.figure(figsize = (10,8))
+        plt.plot([pd.Timestamp(pi) for pi in sensor_data.loc[:,'JULD'].values], 
+                 sensor_data.loc[:,doxy_type].values, 'k-', label = 'moored sensor')
         if len(matchup_fname)>0:
             # Matchup file exists
             
@@ -120,11 +124,25 @@ def do_matchups_with_thresholds(mooring_flist, param_thresh, time_thresh):
                         for ci in cvals:
                             processed_info.loc[matchup_info.index.values[fi], ci]=np.NaN
                             processed_info.loc[matchup_info.index.values[fi], ci+'_STD']=np.NaN
+                       
+                    if np.isnan(float_mean.loc['DOXY']) == False:
+                        plt.scatter(float_date, float_mean.loc['DOXY'],
+                                     label = float_list[0].split('.')[0]+' | '+ matchup_info.loc[:,'DOXY_MODE'].values[fi])
+                        plt.errorbar(float_date, float_mean.loc['DOXY'], yerr = float_mean.loc['DOXY_ERROR'])
                             
                 
+            plt.legend()
+            plt.title(matchup_fname[0].split('/')[-1].split('.')[0])
+            
             # Save processed values in same format as matchup
             if os.path.exists('processed_output/') == False:
                 os.mkdir('processed_output/')
+                
+            if os.path.exists('processed_output/figs/') == False:
+                os.mkdir('processed_output/figs/')
+                
+            plt.savefig('processed_output/figs/'+matchup_fname[0].split('/')[-1].split('.')[0]+'.jpg')
+            plt.close()
                 
             processed_info.to_csv('processed_output/'+matchup_fname[0].split('/')[-1])
             

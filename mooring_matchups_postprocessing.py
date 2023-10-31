@@ -17,6 +17,8 @@ param_thresh = {'SIGMA0': 0.5,
 
 time_thresh = 60 # minutes; +/- time window from float profile
 
-mooring_flist = ['204380_compensated_oxygen.csv'] # glob.glob(dir with post processed mooring data)
+doxy_type = 'DOXY_exp'
 
-do_matchups_with_thresholds(mooring_flist, param_thresh, time_thresh)
+mooring_flist = ['test_data/204380_compensated_oxygen.csv'] # glob.glob(dir with post processed mooring data)
+
+do_matchups_with_thresholds(mooring_flist, param_thresh, time_thresh, doxy_type)
