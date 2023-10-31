@@ -26,7 +26,7 @@ d_type = 'DEPTH' # What vertical axis to look along DEPTH or PRES
 d_thresh = 20 #  depth_bin threshold (+/-) around nominal deployment depth, dbar/m
 
 params =['DOXY'] # look at floats with the following parameters
-over_write = True # over_write pre-processed data
+over_write = False # over_write pre-processed data
 
 
 do_matchups(matchup_info, params, dist_thresh, d_type, d_thresh, over_write)

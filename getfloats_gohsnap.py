@@ -127,7 +127,7 @@ def QCDataByParameter(floatdata, param, datamode):
 
     AllQCLevels=[b'0',b'1',b'2',b'3',b'4',b'5',b'6',b'7',b'8',b'9']
     AllQCLevels_i=[0,1,2,3,4,5,6,7,8,9]
-    goodQC_flags = [1,2]
+    goodQC_flags = [1,2,5,8]
     for i in goodQC_flags:
         AllQCLevels_i.remove(i)
 
