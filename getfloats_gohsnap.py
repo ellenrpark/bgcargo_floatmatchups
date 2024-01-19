@@ -165,14 +165,14 @@ def getfloat_matchups(index_file, lat, lon, dist_thresh, start_date, end_date, p
     print('\nThere are ',good_index.shape[0],' profile match-ups.')
     return good_index
 
-def QCDataByParameter(floatdata, param, datamode):
+def QCDataByParameter(floatdata, param, datamode, goodQC_flags):
     # Given data & parameter --> return qc'd data for that
     # data: (N_PROF, N_LEVELS)
     # datamode: (N_PROF, N_PARAM)
 
     AllQCLevels=[b'0',b'1',b'2',b'3',b'4',b'5',b'6',b'7',b'8',b'9']
     AllQCLevels_i=[0,1,2,3,4,5,6,7,8,9]
-    goodQC_flags = [1,2,5,8]
+    
     for i in goodQC_flags:
         AllQCLevels_i.remove(i)
 
@@ -224,7 +224,8 @@ def QCDataByParameter(floatdata, param, datamode):
     return qc_data, qc_flags, qc_error
 
 def getfloat_values_atdepth(good_index, params,d_bin, use_local_dac=False, over_write=True, *local_dac_dir):
-
+    
+    goodQC_flags = [1,2,5,8]
 
     print('\nGetting float values at depth.')
     good_index = good_index.drop('CHECK1', axis = 1)
@@ -290,7 +291,7 @@ def getfloat_values_atdepth(good_index, params,d_bin, use_local_dac=False, over_
                     datamode = data.PARAMETER_DATA_MODE.values[0,p_ind][0].decode('utf-8')
                     all_param_mode[j]=datamode
 
-                    qc_data, qc_flags, qc_error = QCDataByParameter(data, param, datamode)
+                    qc_data, qc_flags, qc_error = QCDataByParameter(data, param, datamode, goodQC_flags)
 
                     all_values[:,j] = qc_data
                     all_values_error[:,j]=qc_error

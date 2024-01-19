@@ -20,7 +20,7 @@ matchup_info = pd.read_csv('matchup_info.csv')
 
 #use_local_dac = False
 
-dist_thresh = 25 # km...how far away from each lat-lon spot to look
+dist_thresh = 100 # km...how far away from each lat-lon spot to look
 
 # Note: using nominal sensor depth from deployment table
 d_type = 'DEPTH' # What vertical axis to look along DEPTH or PRES

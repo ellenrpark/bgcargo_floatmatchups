@@ -43,6 +43,8 @@ def do_matchups_with_thresholds(mooring_flist, param_thresh, time_thresh, doxy_t
     cvals = ['PRES','TEMP','PSAL','DOXY','DEPTH','SIGMA0','PRES_ERROR','TEMP_ERROR',
              'PSAL_ERROR','DOXY_ERROR']
     
+    mooring_param_list = ['TEMP','PSAL','PRES','DOXY','SIGMA0']
+    
     for mi in np.arange(len(mooring_flist)):
         fname = mooring_flist[mi]
         
@@ -80,6 +82,7 @@ def do_matchups_with_thresholds(mooring_flist, param_thresh, time_thresh, doxy_t
             
             processed_info = matchup_info.copy()
             
+            mooring_values = np.zeros((matchup_info.shape[0],len(mooring_param_list),2))*np.NaN
             # Get list of float matchup file names
             float_list = [fi.split('/')[-1].split('.')[0]+'.pkl' for fi in matchup_info.loc[:,'file'].values]
             
@@ -106,6 +109,10 @@ def do_matchups_with_thresholds(mooring_flist, param_thresh, time_thresh, doxy_t
                     sensor_mean = sensor_data.iloc[ti, 1:].mean()
                     sensor_std = sensor_data.iloc[ti, 1:].std()
                     
+                    for si in np.arange(len(mooring_param_list)):
+                        mooring_values[fi, si,0] = sensor_mean.loc[mooring_param_list[si]]
+                        mooring_values[fi, si,1] = sensor_std.loc[mooring_param_list[si]]
+                        
                     # Now find float data that falls within specified thresholds
                     matchup_inds = GetThreshInds(float_data, sensor_mean, param_thresh)
                     
@@ -124,12 +131,18 @@ def do_matchups_with_thresholds(mooring_flist, param_thresh, time_thresh, doxy_t
                         for ci in cvals:
                             processed_info.loc[matchup_info.index.values[fi], ci]=np.NaN
                             processed_info.loc[matchup_info.index.values[fi], ci+'_STD']=np.NaN
-                       
-                    if np.isnan(float_mean.loc['DOXY']) == False:
-                        plt.scatter(float_date, float_mean.loc['DOXY'],
-                                     label = float_list[0].split('.')[0]+' | '+ matchup_info.loc[:,'DOXY_MODE'].values[fi])
-                        plt.errorbar(float_date, float_mean.loc['DOXY'], yerr = float_mean.loc['DOXY_ERROR'])
                             
+                    if matchup_inds.shape[0]>0:
+                        if np.isnan(float_mean.loc['DOXY']) == False:
+                            plt.scatter(float_date, float_mean.loc['DOXY'],
+                                         label = float_list[0].split('.')[0]+' | '+ matchup_info.loc[:,'DOXY_MODE'].values[fi])
+                            plt.errorbar(float_date, float_mean.loc['DOXY'], yerr = float_mean.loc['DOXY_ERROR'])
+                
+            # Save mooring values
+            for si in np.arange(len(mooring_param_list)):
+                processed_info = processed_info.assign(**{mooring_param_list[si]+'_MOORING': mooring_values[:, si,0]})
+                processed_info = processed_info.assign(**{mooring_param_list[si]+'_STD_MOORING': mooring_values[:, si,1]})
+               
                 
             plt.legend()
             plt.title(matchup_fname[0].split('/')[-1].split('.')[0])
@@ -148,4 +161,5 @@ def do_matchups_with_thresholds(mooring_flist, param_thresh, time_thresh, doxy_t
             
         else:
             print('No matchup data found.')
+            plt.close()
     
