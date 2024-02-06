@@ -40,18 +40,37 @@ def do_matchups_with_thresholds(mooring_flist, param_thresh, time_thresh, doxy_t
     mooring_info = pd.read_csv('matchup_info.csv')
     
     # other info
-    cvals = ['PRES','TEMP','PSAL','DOXY','DEPTH','SIGMA0','PRES_ERROR','TEMP_ERROR',
+    cvals = ['PRES','TEMP','PSAL','DOXY','DEPTH','SIGMA0','THETA0','PRES_ERROR','TEMP_ERROR',
              'PSAL_ERROR','DOXY_ERROR']
     
-    mooring_param_list = ['TEMP','PSAL','PRES','DOXY','SIGMA0']
+    mooring_param_list = ['TEMP','PSAL','PRES','DOXY','SIGMA0','THETA0']
+    
+    summary_table = pd.read_csv('summary_table_deployment_table.csv')
     
     for mi in np.arange(len(mooring_flist)):
         fname = mooring_flist[mi]
         
         # Load sensor data
         sensor_data = pd.read_csv(fname)
+        sensor_num = fname.split('/')[-1].split('.')[0].split('_')[0]
+        sum_slice = summary_table.loc[summary_table.loc[:,'serial_number']==int(sensor_num),:]
         
-        print('\nMatch-up for: '+fname.split('/')[-1].split('.')[0])
+        # Rename time column
+        sensor_data = sensor_data.assign(JULD=np.array([pd.Timestamp(di) for di in \
+                                                        sensor_data.loc[:,'Unnamed: 0'].values]))
+        
+        # Drop extra doxy columns
+        doxy_list = []
+        for di in sensor_data.columns.to_list():
+            if 'DOXY' in di:
+                doxy_list.append(di)
+        doxy_list.remove(doxy_type)
+        
+        sensor_data = sensor_data.drop(columns = doxy_list)
+        # rename as DOXY
+        sensor_data = sensor_data.rename(columns={doxy_type: 'DOXY'})
+        
+        print('\nMatch-up for: '+sensor_num)
         # get sensor SN number from file name
         sensor = fname.split('/')[-1].split('_')[0]
         s_inds = np.where(np.array([fi.split('_')[0] for fi in mooring_info.loc[:,'OUT_FNAME'].values]) == sensor)[0][0]
@@ -64,17 +83,25 @@ def do_matchups_with_thresholds(mooring_flist, param_thresh, time_thresh, doxy_t
         
         CT = gsw.CT_from_t(SA, sensor_data.loc[:,'TEMP'].values, sensor_data.loc[:,'PRES'].values,)
         sigma0 = gsw.sigma0(SA,CT)+1000
+        theta0 = gsw.pt0_from_t(SA,sensor_data.loc[:,'TEMP'].values, sensor_data.loc[:,'PRES'].values)
         sensor_data = sensor_data.assign(SIGMA0 = sigma0)
+        sensor_data = sensor_data.assign(THETA0 = theta0)
         
-        # Rename time column
-        sensor_data = sensor_data.rename(columns={"Unnamed: 0": "JULD"})
         
         # load matchup file
         matchup_fname = glob.glob('matchup_output/'+sensor+'*.csv')
         
-        plt.figure(figsize = (10,8))
-        plt.plot([pd.Timestamp(pi) for pi in sensor_data.loc[:,'JULD'].values], 
-                 sensor_data.loc[:,doxy_type].values, 'k-', label = 'moored sensor')
+        fig = plt.figure(figsize = (20,15))
+        
+        ax1 = fig.add_subplot(2,1,1)
+        X  = np.array([pd.Timestamp(pi) for pi in sensor_data.loc[:,'JULD'].values])
+        Y = sensor_data.loc[:,'DOXY'].values
+        
+        inds = np.where(np.isnan(Y)==False)[0]
+        X = X[inds]
+        Y = Y[inds]
+        ax1.plot(X, Y, 'k-',alpha =0.5, label = 'moored sensor')
+        
         if len(matchup_fname)>0:
             # Matchup file exists
             
@@ -93,6 +120,16 @@ def do_matchups_with_thresholds(mooring_flist, param_thresh, time_thresh, doxy_t
                 
                 float_data = pd.read_pickle(float_fname)
                 float_data = float_data.iloc[2:, :] # Drop first 2 rows because metadata
+                
+                # Add theta0
+                SA = gsw.SA_from_SP(float_data.loc[:,'PSAL'].values,
+                                    float_data.loc[:,'PRES'].values, 
+                                    mooring_info.loc[:,'LONGITUDE'].values[s_inds], 
+                                    mooring_info.loc[:,'LATITUDE'].values[s_inds])
+                
+                CT = gsw.CT_from_t(SA, float_data.loc[:,'TEMP'].values, float_data.loc[:,'PRES'].values,)
+                theta0 = gsw.pt0_from_t(SA,float_data.loc[:,'TEMP'].values, float_data.loc[:,'PRES'].values)
+                float_data = float_data.assign(THETA0 = theta0)
                 
                 float_date = pd.Timestamp(matchup_info.loc[:,'date_format'].values[fi])
                 
@@ -113,6 +150,7 @@ def do_matchups_with_thresholds(mooring_flist, param_thresh, time_thresh, doxy_t
                         mooring_values[fi, si,0] = sensor_mean.loc[mooring_param_list[si]]
                         mooring_values[fi, si,1] = sensor_std.loc[mooring_param_list[si]]
                         
+                    
                     # Now find float data that falls within specified thresholds
                     matchup_inds = GetThreshInds(float_data, sensor_mean, param_thresh)
                     
@@ -134,9 +172,9 @@ def do_matchups_with_thresholds(mooring_flist, param_thresh, time_thresh, doxy_t
                             
                     if matchup_inds.shape[0]>0:
                         if np.isnan(float_mean.loc['DOXY']) == False:
-                            plt.scatter(float_date, float_mean.loc['DOXY'],
+                            ax1.scatter(float_date, float_mean.loc['DOXY'],
                                          label = float_list[0].split('.')[0]+' | '+ matchup_info.loc[:,'DOXY_MODE'].values[fi])
-                            plt.errorbar(float_date, float_mean.loc['DOXY'], yerr = float_mean.loc['DOXY_ERROR'])
+                            ax1.errorbar(float_date, float_mean.loc['DOXY'], yerr = float_mean.loc['DOXY_ERROR'])
                 
             # Save mooring values
             for si in np.arange(len(mooring_param_list)):
@@ -144,8 +182,43 @@ def do_matchups_with_thresholds(mooring_flist, param_thresh, time_thresh, doxy_t
                 processed_info = processed_info.assign(**{mooring_param_list[si]+'_STD_MOORING': mooring_values[:, si,1]})
                
                 
-            plt.legend()
-            plt.title(matchup_fname[0].split('/')[-1].split('.')[0])
+            ax1.legend()
+            ax1.set_title(matchup_fname[0].split('/')[-1].split('.')[0])
+            
+            ax2 = fig.add_subplot(2,1,2,sharex=ax1,sharey=ax1)
+            ax2t = ax2.twinx()
+            
+            x = np.array([pd.Timestamp(int(str(xx)[:4]), int(str(xx)[4:6]),
+                              int(str(xx)[6:8]), int(str(xx)[8:10]),
+                              int(str(xx)[10:12]), int(str(xx)[12:])) for xx in processed_info.loc[:,'date'].values])
+            
+            x1 = x[np.where(np.isnan(processed_info.loc[:,'DOXY_MOORING'].values) == False)[0]]
+            y1 = processed_info.loc[:,'DOXY_MOORING'].values[np.where(np.isnan(processed_info.loc[:,'DOXY_MOORING'].values) == False)[0]]
+            
+            x2 = x[np.where(np.isnan(processed_info.loc[:,'DOXY'].values) == False)[0]]
+            y2 = processed_info.loc[:,'DOXY'].values[np.where(np.isnan(processed_info.loc[:,'DOXY'].values) == False)[0]]
+            
+            inds1 = np.argsort(x1)
+            inds2 = np.argsort(x2)
+            
+            ax2.plot(x1[inds1], y1[inds1], color = 'tab:blue')
+            ax2.scatter(x1[inds1], y1[inds1], color = 'tab:blue')
+            ax2t.plot(x2[inds2], y2[inds2], color = 'tab:orange')
+            ax2t.scatter(x2[inds2], y2[inds2], color = 'tab:orange')
+            
+            ax2.set_ylabel('MOORING DOXY', color = 'tab:blue')
+            ax2t.set_ylabel('ARGO DOXY', color = 'tab:orange')
+            
+            # get correlation value
+            inds = np.where((np.isnan(processed_info.loc[:,'DOXY_MOORING'].values)==False) & \
+                            (np.isnan(processed_info.loc[:,'DOXY'].values)==False))[0]
+            if inds.shape[0]>3:
+                
+                y1 = processed_info.loc[:,'DOXY_MOORING'].values[inds]
+                y2 = processed_info.loc[:,'DOXY'].values[inds]
+                
+                ts = str(np.round(np.corrcoef(y1,y2)[0,1],3))
+                ax2.set_title(ts)
             
             # Save processed values in same format as matchup
             if os.path.exists('processed_output/') == False:
