@@ -11,6 +11,8 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
 
+plt.rcParams.update({'font.size': 24})
+
 flist = sorted(glob.glob('/Users/epark/Documents/GitHub/bgcargo_floatmatchups/processed_output/*.csv'))
 
 colnames = ['file','latitude','longitude','date_format',
@@ -155,7 +157,7 @@ for pi in np.arange(len(type_list)):
     m_list = type_list[pi]
     param = param_list[pi]
     
-    fig = plt.figure(figsize=(15,8))
+    fig = plt.figure(figsize=(25,10))
     
     ax = fig.add_subplot(1,3,1)
     ax.grid()
@@ -168,13 +170,13 @@ for pi in np.arange(len(type_list)):
                         df_all.loc[:,'DOXY_MOORING'].values[inds],
                         c = cmm(np.ones(inds.shape[0],dtype=int)*mi),
                     label = m_list[mi])
-    ax.legend(ncol=2)
+    ax.legend(ncol=2, fontsize = 16)
     
     ts = 'ALL\nMEDIAN DIF: '+\
         str(np.round(np.nanmedian(df_all.loc[:,'DOXY_MOORING'].values-df_all.loc[:,'DOXY'].values),2))
     ax.set_title(ts)
-    ax.set_xlabel('ARGO DOXY')
-    ax.set_ylabel('MOORING DOXY')
+    ax.set_xlabel('ARGO DOXY (µmol/kg)')
+    ax.set_ylabel('MOORING DOXY (µmol/kg)')
     
     
     ax = fig.add_subplot(1,3,2)
@@ -191,8 +193,8 @@ for pi in np.arange(len(type_list)):
     ts = 'ADJUSTED\nMEDIAN DIF: '+\
         str(np.round(np.nanmedian(adjusted.loc[:,'DOXY_MOORING'].values-adjusted.loc[:,'DOXY'].values),2))
     ax.set_title(ts)
-    ax.set_xlabel('ARGO DOXY')
-    ax.set_ylabel('MOORING DOXY')
+    ax.set_xlabel('ARGO DOXY (µmol/kg)')
+    ax.set_ylabel('MOORING DOXY (µmol/kg)')
     
     ax = fig.add_subplot(1,3,3)
     ax.grid()
@@ -208,8 +210,11 @@ for pi in np.arange(len(type_list)):
     ts = 'DELAYED\nMEDIAN DIF: '+\
         str(np.round(np.nanmedian(delayed.loc[:,'DOXY_MOORING'].values-delayed.loc[:,'DOXY'].values),2))
     ax.set_title(ts)
-    ax.set_xlabel('ARGO DOXY')
-    ax.set_ylabel('MOORING DOXY')
+    ax.set_xlabel('ARGO DOXY (µmol/kg)')
+    ax.set_ylabel('MOORING DOXY (µmol/kg)')
+    
+    fig.subplots_adjust(wspace = 0.4)
+    fig.savefig('fig/'+param_list[pi]+'.jpg')
 
 fig = plt.figure(figsize = (15, 8))
 
