@@ -14,10 +14,11 @@ import glob
 
 param_thresh = {'SIGMA0': 0.01}
 
-# param_thresh = {'PSAL': 0.01,
-#               'THETA0': 0.01}
+param_thresh = {'PSAL': 0.005,
+              'TEMP': 0.005,
+              'PRES': 100}
 
-time_thresh = 60*24 # minutes; +/- time window from float profile
+time_thresh = 60*24*5 # minutes; +/- time window from float profile
 
 doxy_type = 'DOXY_drift_corrected'
 

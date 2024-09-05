@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
 
-plt.rcParams.update({'font.size': 24})
+plt.rcParams.update({'font.size': 12})
 
 flist = sorted(glob.glob('/Users/epark/Documents/GitHub/bgcargo_floatmatchups/processed_output/*.csv'))
 
@@ -44,7 +44,7 @@ df_all = df_all.reset_index(drop=True)
 df_all = df_all.assign(ARGO_ERROR=df_all.loc[:,'DOXY_ERROR']/df_all.loc[:,'DOXY']*100)
 df_all = df_all.assign(MOORING_ARGO_ERROR= \
                        abs((df_all.loc[:,'DOXY_MOORING'] - df_all.loc[:,'DOXY']))/df_all.loc[:,'DOXY_MOORING']*100)
-df_all = df_all.assign(MOORING_ARGO_DIF= abs((df_all.loc[:,'DOXY_MOORING'] - df_all.loc[:,'DOXY'])))
+df_all = df_all.assign(MOORING_ARGO_DIF= df_all.loc[:,'DOXY_MOORING'] - df_all.loc[:,'DOXY'])
     
 QC_type = [[]]*df_all.shape[0]
 QC_type_val = np.zeros(df_all.shape[0])*np.NaN
@@ -130,11 +130,11 @@ ax2.set_xlabel('ARGO DOXY ERROR (%)')
 ts = 'DELAYD\nMEDIAN REL ERROR: '+str(np.round(np.nanmedian(y),2))
 ax2.set_title(ts)
 
-plt.figure()
+plt.figure(figsize = (6.5, 4))
 x = df_all.groupby('QC_TYPE').median().index.values
 y = df_all.groupby('QC_TYPE').median().loc[:,'MOORING_ARGO_ERROR']
-y_minus =  df_all.groupby('QC_TYPE').quantile(0.25).loc[:,'MOORING_ARGO_ERROR']
-y_plus =  df_all.groupby('QC_TYPE').quantile(0.75).loc[:,'MOORING_ARGO_ERROR']
+y_minus = y- df_all.groupby('QC_TYPE').quantile(0.25).loc[:,'MOORING_ARGO_ERROR']
+y_plus =  df_all.groupby('QC_TYPE').quantile(0.75).loc[:,'MOORING_ARGO_ERROR']-y
 
 plt.bar(x, y, label = 'MEDIAN')
 plt.errorbar(x,y,yerr=[y_minus, y_plus],
@@ -142,6 +142,19 @@ plt.errorbar(x,y,yerr=[y_minus, y_plus],
              capsize = 5, label = '25-75th Q')
 plt.legend()
 plt.ylabel('RELATIVE ERROR (%)')
+
+plt.figure(figsize = (6.5, 4))
+x = df_all.groupby('QC_TYPE').median().index.values
+y = df_all.groupby('QC_TYPE').median().loc[:,'MOORING_ARGO_DIF']
+y_minus =  y-df_all.groupby('QC_TYPE').quantile(0.25).loc[:,'MOORING_ARGO_DIF']
+y_plus =  df_all.groupby('QC_TYPE').quantile(0.75).loc[:,'MOORING_ARGO_DIF']-y
+
+plt.bar(x, y, label = 'MEDIAN')
+plt.errorbar(x,y,yerr=[y_minus, y_plus],
+             linestyle = 'None', color = 'k',
+             capsize = 5, label = '25-75th Q')
+plt.legend()
+plt.ylabel('MOORING - FLOAT (µmol/kg)')
 
 cmm = plt.get_cmap('tab20', len(m_list))
 
@@ -289,6 +302,38 @@ for mi in np.arange(len(m_list)):
         ax.set_ylabel(param)
     
     
-    
-    
+########
+#######
+plt.figure(figsize = (6.5, 4))
+
+x = delayed.groupby('QC_TYPE').median().index.values
+y = delayed.groupby('QC_TYPE').median().loc[:,'MOORING_ARGO_ERROR']
+y_minus = y- delayed.groupby('QC_TYPE').quantile(0.25).loc[:,'MOORING_ARGO_ERROR']
+y_plus =  delayed.groupby('QC_TYPE').quantile(0.75).loc[:,'MOORING_ARGO_ERROR']-y
+
+plt.bar(x, y, label = 'MEDIAN')
+plt.errorbar(x,y,yerr=[y_minus, y_plus],
+             linestyle = 'None', color = 'k',
+             capsize = 5, label = '25-75th Q')
+plt.legend()
+plt.ylabel('RELATIVE ERROR (%)')
+
+ts = 'Median Relative Error: '+str(np.round(delayed.loc[:,'MOORING_ARGO_ERROR'].median(),2))+'%'
+plt.title(ts)
+
+plt.figure(figsize = (6.5, 4))
+x = delayed.groupby('QC_TYPE').median().index.values
+y = delayed.groupby('QC_TYPE').median().loc[:,'MOORING_ARGO_DIF']
+y_minus =  y-delayed.groupby('QC_TYPE').quantile(0.25).loc[:,'MOORING_ARGO_DIF']
+y_plus =  delayed.groupby('QC_TYPE').quantile(0.75).loc[:,'MOORING_ARGO_DIF']-y
+
+plt.bar(x, y, label = 'MEDIAN')
+plt.errorbar(x,y,yerr=[y_minus, y_plus],
+             linestyle = 'None', color = 'k',
+             capsize = 5, label = '25-75th Q')
+plt.legend()
+plt.ylabel('MOORING - FLOAT (µmol/kg)')
+ts = 'Median Difference: '+str(np.round(delayed.loc[:,'MOORING_ARGO_DIF'].median(),2))+' µmol/kg'
+plt.title(ts)
+
 
